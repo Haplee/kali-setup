@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -148,12 +148,13 @@ footer a:hover{text-decoration:underline}
 <section id="interactive">
   <div class="section-title">Terminal interactiva</div>
   <div class="section-sub">Escribe comandos reales. Tab para autocompletar, ↑↓ para historial.</div>
-  <div class="interactive-wrap">
-    <div class="terminal-window" id="live-terminal" tabindex="0" style="cursor:text;outline:none">
+  <div class="interactive-wrap" style="position:relative">
+    <div class="terminal-window" id="live-terminal" style="cursor:text" onclick="document.getElementById('term-input').focus()">
       <div class="terminal-bar"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><span class="term-title">franvi㉿kali — zsh</span></div>
       <div class="terminal-body" id="live-body"></div>
     </div>
-    <p class="interactive-hint"><kbd>Tab</kbd> autocompleta · <kbd>↑↓</kbd> historial · <kbd>Ctrl+C</kbd> cancela · escribe <kbd>help</kbd> para comandos</p>
+    <textarea id="term-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0"></textarea>
+    <p class="interactive-hint">Haz clic en el terminal y escribe · <kbd>Tab</kbd> autocompleta · <kbd>↑↓</kbd> historial · <kbd>Ctrl+C</kbd> cancela · <kbd>help</kbd> para ver comandos</p>
   </div>
 </section>
 
@@ -466,8 +467,8 @@ function runDemo(){
 setTimeout(runDemo,1200);
 
 // ── INTERACTIVE TERMINAL ──────────────────────────────────────
-const liveTerm=document.getElementById('live-terminal');
 const liveBody=document.getElementById('live-body');
+const termInput=document.getElementById('term-input');
 let buf='',histArr=[],histIdx=-1;
 const SUGGEST_LIST=['ls -la','ll','git status','git log --oneline','whoami','pwd','uname -a','ip addr','df -h','free -h','ps aux','history','nmap -sV localhost','update','date','uptime','help','clear'];
 
@@ -496,39 +497,60 @@ function execLive(){
   const cmd=buf.trim();
   const existing=liveBody.querySelector('.current-input');
   if(existing)existing.remove();
-  // committed line
   const cl=document.createElement('div');
   cl.innerHTML=makePrompt(false,'~/kali-terminal-setup')+highlight(cmd)+'</div>';
   liveBody.appendChild(cl);
   if(cmd){histArr.unshift(cmd);histIdx=-1;}
-  if(cmd==='clear'){liveBody.innerHTML='';buf='';renderInput();return;}
+  if(cmd==='clear'){liveBody.innerHTML='';buf='';renderInput();termInput.value='';return;}
   const out=getOutput(cmd);
   if(out){const od=document.createElement('div');od.innerHTML=out;liveBody.appendChild(od);}
-  buf='';renderInput();
+  buf='';termInput.value='';renderInput();
   liveBody.scrollTop=liveBody.scrollHeight;
 }
 
-liveTerm.addEventListener('click',()=>liveTerm.focus());
-liveTerm.addEventListener('keydown',e=>{
+termInput.addEventListener('keydown',e=>{
   if(['Tab','ArrowUp','ArrowDown'].includes(e.key))e.preventDefault();
-  if(e.key==='Enter'){execLive();return;}
+  if(e.key==='Enter'){e.preventDefault();execLive();return;}
   if(e.key==='Backspace'){buf=buf.slice(0,-1);renderInput();return;}
-  if(e.key==='Tab'){const sug=getSuggestion(buf);if(sug)buf+=sug;renderInput();return;}
-  if(e.key==='ArrowUp'){
-    if(histIdx<histArr.length-1){histIdx++;buf=histArr[histIdx];}renderInput();return;
+  if(e.key==='Delete'){renderInput();return;}
+  if(e.key==='Tab'){const sug=getSuggestion(buf);if(sug)buf+=sug;termInput.value=buf;renderInput();return;}
+  if(e.key==='ArrowUp'){e.preventDefault();
+    if(histIdx<histArr.length-1){histIdx++;buf=histArr[histIdx];termInput.value=buf;}renderInput();return;
   }
-  if(e.key==='ArrowDown'){
-    if(histIdx>0){histIdx--;buf=histArr[histIdx];}else{histIdx=-1;buf='';}renderInput();return;
+  if(e.key==='ArrowDown'){e.preventDefault();
+    if(histIdx>0){histIdx--;buf=histArr[histIdx];}else{histIdx=-1;buf='';}termInput.value=buf;renderInput();return;
   }
   if(e.key==='c'&&e.ctrlKey){
     const cl=document.createElement('div');
     cl.innerHTML=makePrompt(false,'~/kali-terminal-setup')+highlight(buf)+'^C</div>';
     liveBody.querySelector('.current-input')?.remove();
     liveBody.appendChild(cl);
-    buf='';histIdx=-1;renderInput();return;
+    buf='';histIdx=-1;termInput.value='';renderInput();return;
   }
-  if(e.key.length===1&&!e.ctrlKey&&!e.metaKey){buf+=e.key;renderInput();}
+  if(e.key==='l'&&e.ctrlKey){liveBody.innerHTML='';buf='';termInput.value='';renderInput();return;}
 });
+
+// Sync textarea value → buf on every input (handles IME, paste, etc)
+termInput.addEventListener('input',()=>{
+  buf=termInput.value;
+  renderInput();
+});
+
+// Focus textarea when clicking the terminal area
+document.getElementById('live-terminal').addEventListener('click',()=>{
+  termInput.focus();
+});
+
+// Show visual focus indicator
+termInput.addEventListener('focus',()=>{
+  document.getElementById('live-terminal').style.boxShadow='0 0 0 2px rgba(57,255,20,0.3)';
+});
+termInput.addEventListener('blur',()=>{
+  document.getElementById('live-terminal').style.boxShadow='';
+});
+
+// Auto-focus on load
+window.addEventListener('load',()=>{ termInput.focus(); });
 
 // Init interactive
 renderInput();
