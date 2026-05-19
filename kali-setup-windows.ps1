@@ -1,14 +1,15 @@
 #Requires -Version 5.1
 # ============================================================
-#  kali-setup-windows.ps1  v1.1.0
+#  kali-setup-windows.ps1  v1.2.0
 #  Replica el terminal de Kali Linux en Windows
 #  Windows Terminal + Oh My Posh + PSReadLine
 #  Autor: FranVi  |  GitHub: Haplee
 # ============================================================
 
-# No usamos $ErrorActionPreference = 'Stop' global — cada bloque
-# maneja sus propios errores para no abortar en pasos no críticos
+# No usamos $ErrorActionPreference = 'Stop' global
 $ErrorActionPreference = 'Continue'
+# Ocultar barras de progreso de Invoke-WebRequest, Expand-Archive, etc.
+$ProgressPreference = 'SilentlyContinue'
 
 # ── Helpers ──────────────────────────────────────────────────
 function Write-Info  ($m) { Write-Host "[INFO] $m" -ForegroundColor Cyan }
@@ -41,10 +42,12 @@ Write-Host "  by FranVi (github.com/Haplee)`n" -ForegroundColor Yellow
 Write-Host "──────────────────────────────────────────────────────────────────`n"
 
 # ── Variables ────────────────────────────────────────────────
-$OmpThemeDir   = Join-Path $env:USERPROFILE ".config\ohmyposh"
-$OmpThemePath  = Join-Path $OmpThemeDir "kali.omp.json"
-$ProfilePath   = $PROFILE.CurrentUserAllHosts
-$UserName      = $env:USERNAME
+$OmpThemeDir      = Join-Path $env:USERPROFILE ".config\ohmyposh"
+$OmpThemePath     = Join-Path $OmpThemeDir "kali.omp.json"
+# Usamos CurrentUserCurrentHost para que '. $PROFILE' lo recargue directamente
+$ProfilePath      = $PROFILE.CurrentUserCurrentHost
+$ProfilePathAH    = $PROFILE.CurrentUserAllHosts   # backup en AllHosts también
+$UserName         = $env:USERNAME
 
 # Rutas conocidas de Windows Terminal settings.json
 $WTPaths = @(
@@ -62,12 +65,13 @@ Write-Step "PASO 0 — Comprobaciones previas"
 # Versión de PowerShell
 Write-Ok "PowerShell $($PSVersionTable.PSVersion)"
 
-# Admin check
+# Admin check (primero, sin mezclar con otras líneas de output)
 $IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).`
     IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $IsAdmin) {
-    Write-Warn "No estás ejecutando como Administrador. Algunas operaciones pueden requerir elevación."
-    Track-Warn "Sin privilegios de Administrador — algunas instalaciones pueden fallar"
+    Write-Warn "No estás ejecutando como Administrador."
+    Write-Warn "Algunas instalaciones (fuentes) pueden requerir elevación."
+    Track-Warn "Sin privilegios de Administrador — fuentes pueden no instalarse"
 }
 
 # winget
@@ -78,7 +82,7 @@ if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
 Write-Ok "winget $(winget --version)"
 Track-Ok "winget verificado"
 
-# Conectividad
+# Conectividad (ProgressPreference ya es SilentlyContinue — no se mezclan barras)
 Write-Info "Comprobando conectividad..."
 try {
     $null = Invoke-WebRequest -Uri "https://ohmyposh.dev" -UseBasicParsing -TimeoutSec 8
@@ -92,7 +96,7 @@ try {
 # ExecutionPolicy
 $policy = Get-ExecutionPolicy -Scope CurrentUser
 if ($policy -eq 'Restricted') {
-    Write-Warn "ExecutionPolicy es Restricted. Aplicando RemoteSigned para el usuario actual..."
+    Write-Warn "ExecutionPolicy es Restricted. Aplicando RemoteSigned..."
     try {
         Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
         Write-Ok "ExecutionPolicy ajustada a RemoteSigned."
@@ -297,26 +301,29 @@ try {
 # ============================================================
 Write-Step "PASO 5 — Perfil de PowerShell"
 
-# Backup si existe
-if (Test-Path $ProfilePath) {
-    try {
-        $Backup = "$ProfilePath.backup.$(Get-Date -Format 'yyyyMMdd_HHmmss')"
-        Copy-Item $ProfilePath $Backup -ErrorAction Stop
-        Write-Ok "Backup guardado → $Backup"
-        Track-Ok "Backup del perfil anterior"
-    } catch {
-        Write-Warn "No se pudo crear backup: $_"
-        Track-Warn "Backup del perfil fallido"
+# Función helper para escribir el perfil en una ruta dada
+function Write-Profile {
+    param([string]$Path, [string]$Content)
+    # Backup si ya existe
+    if (Test-Path $Path) {
+        try {
+            $bak = "$Path.backup.$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+            Copy-Item $Path $bak -ErrorAction Stop
+            Write-Ok "Backup → $bak"
+        } catch {
+            Write-Warn "No se pudo crear backup de ${Path}: $_"
+        }
     }
+    $null = New-Item -ItemType Directory -Path (Split-Path $Path) -Force -ErrorAction SilentlyContinue
+    $Content | Set-Content -Path $Path -Encoding UTF8
+    Write-Ok "Perfil escrito: $Path"
 }
 
 try {
-    $null = New-Item -ItemType Directory -Path (Split-Path $ProfilePath) -Force -ErrorAction Stop
-
     $ProfileContent = @"
 # ============================================================
 #  PowerShell Profile — Kali Linux style
-#  Generado por kali-setup-windows.ps1 v1.1.0
+#  Generado por kali-setup-windows.ps1 v1.2.0
 #  https://github.com/Haplee/kali-terminal-setup
 # ============================================================
 
@@ -421,8 +428,11 @@ function h (`$pattern = '') {
 }
 "@
 
-    $ProfileContent | Set-Content -Path $ProfilePath -Encoding UTF8
-    Write-Ok "Perfil PowerShell escrito: $ProfilePath"
+    # Escribir en CurrentUserCurrentHost (lo que recarga '. $PROFILE')
+    Write-Profile -Path $ProfilePath -Content $ProfileContent
+    # Escribir también en CurrentUserAllHosts (carga en todas las sesiones PS)
+    Write-Profile -Path $ProfilePathAH -Content $ProfileContent
+    Write-Ok "Perfil escrito en CurrentUserCurrentHost y CurrentUserAllHosts."
     Track-Ok "Perfil PowerShell con PSReadLine + Oh My Posh + aliases"
 } catch {
     Write-Fail "No se pudo escribir el perfil: $_"
@@ -536,9 +546,13 @@ Write-Host "$ _" -ForegroundColor Blue
 
 Write-Host ""
 Write-Host "  Para activar ahora:" -ForegroundColor Yellow
-Write-Host "    . `$PROFILE" -NoNewline -ForegroundColor Cyan
-Write-Host "   — recarga el perfil en esta sesion"
-Write-Host "    wt" -NoNewline -ForegroundColor Cyan
-Write-Host "           — abre Windows Terminal con el tema aplicado"
+Write-Host "    . `$PROFILE " -NoNewline -ForegroundColor Cyan
+Write-Host "  — recarga el perfil en esta sesion (recomendado)"
+Write-Host "    wt          " -NoNewline -ForegroundColor Cyan
+Write-Host "  — abre Windows Terminal nuevo con el tema aplicado"
+Write-Host ""
+Write-Host "  Rutas de perfil escritas:" -ForegroundColor Cyan
+Write-Host "    $ProfilePath" -ForegroundColor Gray
+Write-Host "    $ProfilePathAH" -ForegroundColor Gray
 Write-Host ""
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`n" -ForegroundColor Cyan
