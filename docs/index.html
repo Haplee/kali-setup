@@ -1,0 +1,537 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Demo interactiva de kali-terminal-setup — Replica el terminal de Kali Linux en Ubuntu con Oh My Zsh, plugins y paleta Kali Dark.">
+<title>kali-terminal-setup — Demo Interactiva</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d0d0f;--t-bg:#1c1c1c;--green:#39ff14;--cyan:#00e5ff;--red:#ff4444;--yellow:#ffcc00;--mag:#cc44ff;--blue:#1e90ff;--text:#e0e0e0;--dim:#666;--border:#2d2d2d;--font-mono:'JetBrains Mono',monospace;--font-ui:'Inter',sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font-ui);overflow-x:hidden;min-height:100vh}
+canvas#matrix{position:fixed;top:0;left:0;width:100%;height:100%;opacity:.04;z-index:0;pointer-events:none}
+nav{position:sticky;top:0;z-index:100;background:rgba(13,13,15,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:14px 5%}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;max-width:1100px;margin:0 auto}
+.nav-logo{font-family:var(--font-mono);font-size:1rem;color:var(--green);text-shadow:0 0 8px var(--green);text-decoration:none}
+.nav-logo span{color:var(--cyan)}
+.nav-links{display:flex;gap:24px;align-items:center}
+.nav-links a{color:var(--dim);text-decoration:none;font-size:.875rem;transition:color .2s}
+.nav-links a:hover{color:var(--text)}
+.btn-gh{background:linear-gradient(135deg,var(--green),var(--cyan));color:#000;font-weight:700;font-size:.8rem;padding:7px 16px;border-radius:6px;text-decoration:none;transition:opacity .2s}
+.btn-gh:hover{opacity:.85}
+main{position:relative;z-index:1}
+/* HERO */
+.hero{text-align:center;padding:80px 5% 60px}
+.hero pre{font-family:var(--font-mono);font-size:clamp(.4rem,.9vw,.75rem);color:var(--green);text-shadow:0 0 6px var(--green);line-height:1.2;margin-bottom:24px;overflow:auto}
+.hero h1{font-size:clamp(1.2rem,3vw,1.8rem);font-weight:600;margin-bottom:12px}
+.hero h1 span{color:var(--cyan)}
+.hero p{color:var(--dim);max-width:560px;margin:0 auto 28px;line-height:1.7}
+.hero-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn-primary{background:var(--green);color:#000;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;transition:all .2s;box-shadow:0 0 20px rgba(57,255,20,.3)}
+.btn-primary:hover{box-shadow:0 0 30px rgba(57,255,20,.5);transform:translateY(-1px)}
+.btn-secondary{border:1px solid var(--cyan);color:var(--cyan);font-weight:600;padding:12px 28px;border-radius:8px;text-decoration:none;transition:all .2s}
+.btn-secondary:hover{background:rgba(0,229,255,.1)}
+/* SECTIONS */
+section{max-width:1100px;margin:0 auto;padding:60px 5%}
+.section-title{font-size:1.5rem;font-weight:700;margin-bottom:8px}
+.section-sub{color:var(--dim);margin-bottom:36px}
+/* TERMINAL WINDOW */
+.terminal-window{background:var(--t-bg);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 0 1px rgba(57,255,20,.05)}
+.terminal-bar{background:#2a2a2a;padding:10px 14px;display:flex;align-items:center;gap:8px}
+.dot{width:12px;height:12px;border-radius:50%}
+.dot.r{background:#ff5f57}.dot.y{background:#febc2e}.dot.g{background:#28c840}
+.term-title{margin-left:8px;font-family:var(--font-mono);font-size:.75rem;color:var(--dim)}
+.terminal-body{padding:16px;font-family:var(--font-mono);font-size:.85rem;line-height:1.6;min-height:280px;overflow-y:auto;max-height:420px}
+/* PROMPT */
+.prompt-border{color:var(--green)}
+.prompt-user{color:var(--blue);font-weight:700}
+.prompt-path{color:var(--text);font-weight:700}
+.prompt-char{color:var(--blue);font-weight:700}
+.prompt-root .prompt-border{color:var(--blue)}
+.prompt-root .prompt-user{color:var(--red)}
+.prompt-root .prompt-char{color:var(--red)}
+/* SYNTAX */
+.hl-cmd{color:var(--green);font-weight:700}
+.hl-alias{color:var(--cyan);font-weight:700}
+.hl-unknown{color:var(--red);font-weight:700}
+.hl-flag{color:var(--dim)}
+.hl-str{color:var(--yellow)}
+.hl-path{color:var(--text);text-decoration:underline}
+.hl-suggest{color:#444;pointer-events:none}
+.hl-cursor{background:var(--green);color:#000;animation:blink .9s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.rprompt-err{color:var(--red);float:right;margin-top:-1.6em}
+.cmd-out{color:#b0b0b0;white-space:pre;display:block;margin:2px 0 8px}
+.cmd-out .g{color:var(--green)}.cmd-out .c{color:var(--cyan)}.cmd-out .y{color:var(--yellow)}.cmd-out .r{color:var(--red)}.cmd-out .b{color:var(--blue)}.cmd-out .d{color:var(--dim)}
+/* INTERACTIVE */
+.interactive-wrap{position:relative}
+.interactive-hint{text-align:center;font-size:.78rem;color:var(--dim);margin-top:10px}
+.interactive-hint kbd{background:#2a2a2a;border:1px solid #444;border-radius:3px;padding:1px 5px;font-family:var(--font-mono);font-size:.72rem}
+/* FEATURES */
+.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+.feature-card{background:var(--t-bg);border:1px solid var(--border);border-radius:10px;padding:24px;transition:border-color .2s,transform .2s}
+.feature-card:hover{border-color:var(--green);transform:translateY(-2px)}
+.feature-icon{font-size:1.8rem;margin-bottom:14px}
+.feature-card h3{font-size:1rem;font-weight:700;margin-bottom:8px}
+.feature-card p{color:var(--dim);font-size:.875rem;line-height:1.6}
+.plugin-list{margin-top:10px;font-family:var(--font-mono);font-size:.78rem}
+.plugin-list li{list-style:none;padding:3px 0;color:var(--text)}
+.plugin-list li::before{content:"▸ ";color:var(--green)}
+/* PALETTE */
+.palette-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:8px}
+.swatch{border-radius:8px;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s;border:1px solid rgba(255,255,255,.05)}
+.swatch:hover{transform:scale(1.08)}
+.swatch span{font-family:var(--font-mono);font-size:.55rem;margin-top:4px;opacity:.7}
+/* INSTALL */
+.install-section{text-align:center}
+.install-box{background:var(--t-bg);border:1px solid var(--border);border-radius:10px;padding:28px;max-width:640px;margin:0 auto}
+.install-cmd{font-family:var(--font-mono);font-size:.9rem;color:var(--green);background:#111;padding:14px 20px;border-radius:6px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 0}
+.copy-btn{background:none;border:1px solid var(--dim);color:var(--dim);font-family:var(--font-ui);font-size:.75rem;padding:4px 10px;border-radius:4px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.copy-btn:hover,.copy-btn.copied{border-color:var(--green);color:var(--green)}
+.install-steps{text-align:left;margin-top:16px;font-family:var(--font-mono);font-size:.8rem;color:var(--dim);line-height:2}
+.install-steps .g{color:var(--green)}
+/* FOOTER */
+footer{border-top:1px solid var(--border);padding:28px 5%;text-align:center;color:var(--dim);font-size:.85rem;position:relative;z-index:1}
+footer a{color:var(--cyan);text-decoration:none}
+footer a:hover{text-decoration:underline}
+/* DEMO AUTO */
+#auto-demo{margin-bottom:60px}
+/* RESPONSIVE */
+@media(max-width:600px){.palette-grid{grid-template-columns:repeat(4,1fr)}.nav-links a:not(.btn-gh){display:none}.hero pre{font-size:.38rem}}
+</style>
+</head>
+<body>
+<canvas id="matrix"></canvas>
+<nav>
+  <div class="nav-inner">
+    <a class="nav-logo" href="#">▸ kali-<span>terminal</span>-setup</a>
+    <div class="nav-links">
+      <a href="#demo">Demo</a>
+      <a href="#interactive">Terminal</a>
+      <a href="#features">Features</a>
+      <a href="#install">Instalar</a>
+      <a class="btn-gh" href="https://github.com/Haplee/kali-terminal-setup" target="_blank">GitHub</a>
+    </div>
+  </div>
+</nav>
+<main>
+<div class="hero">
+  <pre>
+  ██╗  ██╗ █████╗ ██╗     ██╗    ████████╗███████╗██████╗ ███╗   ███╗
+  ██║ ██╔╝██╔══██╗██║     ██║    ╚══██╔══╝██╔════╝██╔══██╗████╗ ████║
+  █████╔╝ ███████║██║     ██║       ██║   █████╗  ██████╔╝██╔████╔██║
+  ██╔═██╗ ██╔══██║██║     ██║       ██║   ██╔══╝  ██╔══██╗██║╚██╔╝██║
+  ██║  ██╗██║  ██║███████╗██║       ██║   ███████╗██║  ██║██║ ╚═╝ ██║
+  ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝       ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝</pre>
+  <h1>Terminal idéntico a <span>Kali Linux</span> en Ubuntu</h1>
+  <p>Instala Oh My Zsh, prompt exacto de Kali, plugins de autosugerencia y resaltado de sintaxis, y la paleta de colores Kali Dark para Tilix. Un solo comando.</p>
+  <div class="hero-btns">
+    <a class="btn-primary" href="#interactive">▶ Probar Demo</a>
+    <a class="btn-secondary" href="#install">↓ Instalar</a>
+  </div>
+</div>
+
+<!-- AUTO DEMO -->
+<section id="demo">
+  <div class="section-title">Demo automática</div>
+  <div class="section-sub">Observa el prompt, el resaltado de sintaxis y el código de error en acción</div>
+  <div class="terminal-window">
+    <div class="terminal-bar"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><span class="term-title">franvi@kali: ~</span></div>
+    <div class="terminal-body" id="auto-term"></div>
+  </div>
+</section>
+
+<!-- INTERACTIVE TERMINAL -->
+<section id="interactive">
+  <div class="section-title">Terminal interactiva</div>
+  <div class="section-sub">Escribe comandos reales. Tab para autocompletar, ↑↓ para historial.</div>
+  <div class="interactive-wrap">
+    <div class="terminal-window" id="live-terminal" tabindex="0" style="cursor:text;outline:none">
+      <div class="terminal-bar"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><span class="term-title">franvi㉿kali — zsh</span></div>
+      <div class="terminal-body" id="live-body"></div>
+    </div>
+    <p class="interactive-hint"><kbd>Tab</kbd> autocompleta · <kbd>↑↓</kbd> historial · <kbd>Ctrl+C</kbd> cancela · escribe <kbd>help</kbd> para comandos</p>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-title">¿Qué instala?</div>
+  <div class="section-sub">8 pasos automatizados, sin intervención manual</div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <h3>Prompt exacto de Kali</h3>
+      <p>El icónico prompt de dos líneas con el símbolo <code style="color:var(--cyan)">㉿</code>, colores diferenciados para root y usuario, y RPROMPT con código de error.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔌</div>
+      <h3>Plugins zsh</h3>
+      <p>Configuración lista con los plugins más útiles:</p>
+      <ul class="plugin-list">
+        <li>zsh-autosuggestions</li>
+        <li>zsh-syntax-highlighting</li>
+        <li>git</li>
+        <li>colored-man-pages</li>
+        <li>command-not-found</li>
+      </ul>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎨</div>
+      <h3>Paleta Kali Dark</h3>
+      <p>Colores exactos del terminal de Kali Linux aplicados automáticamente en Tilix vía <code style="color:var(--cyan)">dconf</code>. JSON standalone incluido para otros terminales.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📝</div>
+      <h3>Aliases estilo Kali</h3>
+      <p><code style="color:var(--green)">ll</code>, <code style="color:var(--green)">update</code>, <code style="color:var(--cyan)">please</code> (sudo !!), <code style="color:var(--green)">cls</code>, <code style="color:var(--green)">ip</code> con colores y más.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">💾</div>
+      <h3>Historial inteligente</h3>
+      <p>10.000 entradas sin duplicados, compartido entre sesiones con <code style="color:var(--cyan)">SHARE_HISTORY</code>.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🛡️</div>
+      <h3>Backup automático</h3>
+      <p>El script hace backup de tu <code style="color:var(--cyan)">.zshrc</code> existente con timestamp antes de reemplazarlo.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PALETTE -->
+<section id="colors">
+  <div class="section-title">Paleta Kali Dark</div>
+  <div class="section-sub">Haz clic en un color para copiar su hex</div>
+  <div class="palette-grid" id="palette"></div>
+</section>
+
+<!-- INSTALL -->
+<section id="install" class="install-section">
+  <div class="section-title">Instalación</div>
+  <div class="section-sub">Un script, todo configurado</div>
+  <div class="install-box">
+    <div class="install-cmd">
+      <code>git clone https://github.com/Haplee/kali-terminal-setup.git && cd kali-terminal-setup && chmod +x kali-terminal-setup.sh && ./kali-terminal-setup.sh</code>
+      <button class="copy-btn" onclick="copyInstall(this)">copiar</button>
+    </div>
+    <div class="install-steps">
+      <span class="g">✔</span> Ubuntu 20.04+ / Debian 11+<br>
+      <span class="g">✔</span> Acceso sudo<br>
+      <span class="g">✔</span> Conexión a internet<br>
+      Tras el script: <span class="g">exec zsh</span> o <span class="g">source ~/.zshrc</span>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  Hecho por <a href="https://github.com/Haplee" target="_blank">FranVi (Haplee)</a> ·
+  <a href="https://www.instagram.com/franvidalmateo" target="_blank">Instagram</a> ·
+  <a href="https://x.com/FranVidalMateo" target="_blank">X</a> ·
+  <a href="https://github.com/Haplee/kali-terminal-setup/blob/main/LICENSE" target="_blank">MIT License</a>
+</footer>
+<script>
+// ── Matrix rain ──────────────────────────────────────────────
+const canvas = document.getElementById('matrix');
+const ctx = canvas.getContext('2d');
+function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight}
+resizeCanvas();window.addEventListener('resize',resizeCanvas);
+const chars='01アイウエオカキクケコサシスセソタチツテト';
+const cols=Math.floor(window.innerWidth/20);
+const drops=Array(cols).fill(1);
+setInterval(()=>{
+  ctx.fillStyle='rgba(0,0,0,0.05)';ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#39ff14';ctx.font='14px monospace';
+  drops.forEach((y,i)=>{
+    ctx.fillText(chars[Math.floor(Math.random()*chars.length)],i*20,y*20);
+    if(y*20>canvas.height&&Math.random()>.975)drops[i]=0;
+    drops[i]++;
+  });
+},60);
+
+// ── Palette ───────────────────────────────────────────────────
+const palette=[
+  {hex:'#1c1c1c',name:'Black'},
+  {hex:'#ff4444',name:'Red'},
+  {hex:'#39ff14',name:'Green'},
+  {hex:'#ffcc00',name:'Yellow'},
+  {hex:'#1e90ff',name:'Blue'},
+  {hex:'#cc44ff',name:'Magenta'},
+  {hex:'#00e5ff',name:'Cyan'},
+  {hex:'#e0e0e0',name:'White'},
+  {hex:'#4a4a4a',name:'Br.Black'},
+  {hex:'#ff6666',name:'Br.Red'},
+  {hex:'#66ff66',name:'Br.Green'},
+  {hex:'#ffdd55',name:'Br.Yellow'},
+  {hex:'#66aaff',name:'Br.Blue'},
+  {hex:'#dd88ff',name:'Br.Mag'},
+  {hex:'#55eeff',name:'Br.Cyan'},
+  {hex:'#ffffff',name:'Br.White'}
+];
+const pg=document.getElementById('palette');
+palette.forEach(c=>{
+  const d=document.createElement('div');
+  d.className='swatch';d.style.background=c.hex;
+  d.title=`${c.name}: ${c.hex}`;
+  d.innerHTML=`<span>${c.hex}</span>`;
+  d.onclick=()=>{navigator.clipboard.writeText(c.hex);d.style.outline='2px solid #39ff14';setTimeout(()=>d.style.outline='',1000)};
+  pg.appendChild(d);
+});
+
+// ── Copy install ─────────────────────────────────────────────
+function copyInstall(btn){
+  const cmd='git clone https://github.com/Haplee/kali-terminal-setup.git && cd kali-terminal-setup && chmod +x kali-terminal-setup.sh && ./kali-terminal-setup.sh';
+  navigator.clipboard.writeText(cmd);
+  btn.textContent='¡copiado!';btn.classList.add('copied');
+  setTimeout(()=>{btn.textContent='copiar';btn.classList.remove('copied')},2000);
+}
+window.copyInstall=copyInstall;
+
+// ── Prompt builder ────────────────────────────────────────────
+function makePrompt(isRoot=false,path='~'){
+  const bc=isRoot?'prompt-border':'prompt-border';
+  const cls=isRoot?'prompt-root':'';
+  return `<div class="${cls}"><span class="prompt-border">┌──(</span><span class="prompt-user">${isRoot?'root':'franvi'}㉿kali</span><span class="prompt-border">)-[</span><span class="prompt-path">${path}</span><span class="prompt-border">]</span></div>`+
+    `<div class="${cls}"><span class="prompt-border">└─</span><span class="prompt-char">${isRoot?'#':'$'}</span> `;
+}
+
+// ── Syntax highlight ─────────────────────────────────────────
+const KNOWN_CMDS=['ls','ll','la','l','pwd','whoami','clear','uname','ip','date','uptime','df','free','ps','git','nmap','cat','echo','history','man','grep','find','chmod','chown','mkdir','rm','cp','mv','cd','ping','ssh','curl','wget','systemctl','journalctl','apt','sudo'];
+const KNOWN_ALIASES=['update','please','cls'];
+function highlight(txt){
+  if(!txt)return'';
+  const parts=txt.split(' ');
+  const first=parts[0];
+  let out='';
+  if(KNOWN_ALIASES.includes(first))out+=`<span class="hl-alias">${esc(first)}</span>`;
+  else if(KNOWN_CMDS.includes(first))out+=`<span class="hl-cmd">${esc(first)}</span>`;
+  else out+=`<span class="hl-unknown">${esc(first)}</span>`;
+  parts.slice(1).forEach(p=>{
+    out+=' ';
+    if(p.startsWith('-'))out+=`<span class="hl-flag">${esc(p)}</span>`;
+    else if((p.startsWith('"')||p.startsWith("'")))out+=`<span class="hl-str">${esc(p)}</span>`;
+    else if(p.startsWith('/')||p.startsWith('~'))out+=`<span class="hl-path">${esc(p)}</span>`;
+    else out+=esc(p);
+  });
+  return out;
+}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+// ── Command outputs ──────────────────────────────────────────
+function getOutput(cmd){
+  const c=cmd.trim();
+  const map={
+    'help':`<span class="cmd-out">Comandos disponibles:
+  <span class="g">ls</span>, <span class="c">ll</span>, <span class="c">la</span>   listar archivos
+  <span class="g">pwd</span>          directorio actual
+  <span class="g">whoami</span>       usuario actual
+  <span class="g">uname -a</span>     info del kernel
+  <span class="g">ip addr</span>      interfaces de red
+  <span class="g">date</span>         fecha y hora actual
+  <span class="g">uptime</span>       tiempo encendido
+  <span class="g">df -h</span>        uso de disco
+  <span class="g">free -h</span>      uso de memoria
+  <span class="g">ps aux</span>       procesos activos
+  <span class="g">git status</span>   estado del repositorio
+  <span class="g">git log</span>      historial de commits
+  <span class="g">nmap -sV localhost</span>  escaneo local
+  <span class="c">update</span>       alias: sudo apt update &amp;&amp; upgrade
+  <span class="c">please [cmd]</span> alias: sudo !!
+  <span class="g">echo [texto]</span> mostrar texto
+  <span class="g">history</span>      historial de comandos
+  <span class="g">clear</span>        limpiar pantalla</span>`,
+    'ls':`<span class="cmd-out"><span class="b">docs</span>  <span class="b">schemes</span>  <span class="g">.gitignore</span>  kali-terminal-setup.sh  LICENSE  README.md</span>`,
+    'll':`<span class="cmd-out">total 52
+drwxr-xr-x 4 franvi franvi 4096 may 19 13:00 <span class="b">.</span>
+drwxr-xr-x 8 franvi franvi 4096 may 19 12:00 <span class="b">..</span>
+drwxr-xr-x 2 franvi franvi 4096 may 19 13:00 <span class="b">docs</span>
+-rw-r--r-- 1 franvi franvi  167 may 19 13:00 <span class="g">.gitignore</span>
+-rwxr-xr-x 1 franvi franvi 12282 may 19 13:00 <span class="g">kali-terminal-setup.sh</span>
+-rw-r--r-- 1 franvi franvi 1069 may 19 13:00 LICENSE
+-rw-r--r-- 1 franvi franvi 4200 may 19 13:00 README.md
+drwxr-xr-x 2 franvi franvi 4096 may 19 13:00 <span class="b">schemes</span></span>`,
+    'la':`<span class="cmd-out"><span class="d">.</span>  <span class="d">..</span>  <span class="b">docs</span>  <span class="g">.git</span>  <span class="g">.gitignore</span>  kali-terminal-setup.sh  LICENSE  README.md  <span class="b">schemes</span></span>`,
+    'pwd':`<span class="cmd-out">/home/franvi/kali-terminal-setup</span>`,
+    'whoami':`<span class="cmd-out">franvi</span>`,
+    'uname -a':`<span class="cmd-out">Linux kali 6.8.0-kali5-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.8.12-1kali1 x86_64 GNU/Linux</span>`,
+    'ip addr':`<span class="cmd-out">1: lo: &lt;LOOPBACK,UP&gt; mtu 65536
+    inet <span class="y">127.0.0.1/8</span> scope host lo
+2: eth0: &lt;BROADCAST,MULTICAST,UP&gt; mtu 1500
+    inet <span class="y">192.168.1.100/24</span> brd 192.168.1.255 scope global
+3: wlan0: &lt;BROADCAST,MULTICAST,UP&gt; mtu 1500
+    inet <span class="y">192.168.1.101/24</span> brd 192.168.1.255 scope global</span>`,
+    'date':`<span class="cmd-out">${new Date().toLocaleString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>`,
+    'uptime':`<span class="cmd-out"> 13:44  up 3:22,  1 user,  load average: 0.15, 0.12, 0.09</span>`,
+    'df -h':`<span class="cmd-out">Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        50G   18G   30G  37% /
+tmpfs           3.9G     0  3.9G   0% /dev/shm
+/dev/sda2       100G   45G   50G  47% /home</span>`,
+    'free -h':`<span class="cmd-out">               total        used        free
+Mem:           7.7Gi       2.1Gi       4.2Gi
+Swap:          2.0Gi          0B       2.0Gi</span>`,
+    'ps aux':`<span class="cmd-out">USER       PID %CPU %MEM COMMAND
+franvi    1234  0.0  0.1 /bin/zsh
+franvi    5678  0.2  1.2 vim README.md
+franvi    9012  0.0  0.0 ps aux</span>`,
+    'git status':`<span class="cmd-out">On branch <span class="g">main</span>
+Your branch is up to date with 'origin/main'.
+nothing to commit, working tree clean</span>`,
+    'git log':`<span class="cmd-out"><span class="y">eb2b18a</span> feat: initial commit — kali-terminal-setup v1.0.0
+<span class="y">a3f9c21</span> docs: add preview documentation
+<span class="y">b1e8d34</span> feat: add Kali Dark color scheme for Tilix</span>`,
+    'git log --oneline':`<span class="cmd-out"><span class="y">eb2b18a</span> (HEAD -> <span class="g">main</span>) feat: initial commit — kali-terminal-setup v1.0.0</span>`,
+    'history':`<span class="cmd-out">    1  git init
+    2  git add .
+    3  git commit -m "feat: initial commit"
+    4  ls -la
+    5  git status
+    6  whoami
+    7  pwd
+    8  ip addr
+    9  uname -a
+   10  history</span>`,
+    'nmap -sV localhost':`<span class="cmd-out">Starting Nmap 7.94SVN ( https://nmap.org )
+Nmap scan report for localhost (127.0.0.1)
+Host is up (0.000011s latency).
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 9.2 (Debian)
+80/tcp open  http    nginx 1.25.0
+Service detection performed in 1.23 seconds</span>`,
+    'update':`<span class="cmd-out"><span class="d"># alias → sudo apt update &amp;&amp; sudo apt upgrade -y</span>
+Obj:1 http://kali.download/kali kali-rolling InRelease
+Leyendo lista de paquetes... Hecho
+Calculando actualizaciones... Hecho
+<span class="g">0 actualizados, 0 nuevos se instalarán, 0 para eliminar.</span></span>`,
+    'please':`<span class="cmd-out"><span class="d"># alias → sudo !!</span>
+Uso: please [comando]
+Ejemplo: please ls /root</span>`,
+  };
+  if(c in map)return map[c];
+  if(c.startsWith('echo '))return`<span class="cmd-out">${esc(c.slice(5))}</span>`;
+  if(c.startsWith('cd '))return'';
+  if(c==='')return'';
+  return`<span class="cmd-out"><span class="r">zsh: command not found: ${esc(c.split(' ')[0])}</span></span>`;
+}
+
+// ── AUTO DEMO ─────────────────────────────────────────────────
+const autoTerm=document.getElementById('auto-term');
+const demoSeq=[
+  {cmd:'whoami',fail:false,pause:700},
+  {cmd:'ls -la',fail:false,pause:900},
+  {cmd:'git status',fail:false,pause:800},
+  {cmd:'uname -a',fail:false,pause:700},
+  {cmd:'nmap -sV localhost',fail:false,pause:1000},
+  {cmd:'ls /nonexistent',fail:true,pause:800},
+];
+let demoIdx=0;
+function runDemo(){
+  if(demoIdx>=demoSeq.length){demoIdx=0;setTimeout(()=>{autoTerm.innerHTML='';runDemo();},3000);return;}
+  const {cmd,fail,pause}=demoSeq[demoIdx++];
+  const line=document.createElement('div');
+  autoTerm.appendChild(line);
+  line.innerHTML=makePrompt(false,'~/kali-terminal-setup');
+  let i=0;
+  const typed=document.createElement('span');
+  line.appendChild(typed);
+  const interval=setInterval(()=>{
+    typed.innerHTML=highlight(cmd.slice(0,i+1));
+    i++;
+    if(i>=cmd.length){
+      clearInterval(interval);
+      setTimeout(()=>{
+        line.innerHTML=makePrompt(false,'~/kali-terminal-setup')+highlight(cmd)+'</div>';
+        if(fail){
+          const rp=document.createElement('div');
+          rp.innerHTML=`<span class="rprompt-err">✘ 2</span>`;
+          autoTerm.appendChild(rp);
+          autoTerm.appendChild(document.createElement('br'));
+          const errOut=document.createElement('div');
+          errOut.innerHTML=`<span class="cmd-out"><span class="r">ls: no se puede acceder a '/nonexistent': No existe el fichero o el directorio</span></span>`;
+          autoTerm.appendChild(errOut);
+        } else {
+          const out=document.createElement('div');
+          out.innerHTML=getOutput(cmd);
+          autoTerm.appendChild(out);
+        }
+        autoTerm.scrollTop=autoTerm.scrollHeight;
+        setTimeout(runDemo,pause);
+      },200);
+    }
+  },55);
+}
+setTimeout(runDemo,1200);
+
+// ── INTERACTIVE TERMINAL ──────────────────────────────────────
+const liveTerm=document.getElementById('live-terminal');
+const liveBody=document.getElementById('live-body');
+let buf='',histArr=[],histIdx=-1;
+const SUGGEST_LIST=['ls -la','ll','git status','git log --oneline','whoami','pwd','uname -a','ip addr','df -h','free -h','ps aux','history','nmap -sV localhost','update','date','uptime','help','clear'];
+
+function getSuggestion(s){
+  if(!s)return'';
+  const all=[...histArr,...SUGGEST_LIST];
+  const m=all.find(h=>h.startsWith(s)&&h!==s);
+  return m?m.slice(s.length):'';
+}
+
+function renderInput(){
+  const existing=liveBody.querySelector('.current-input');
+  if(existing)existing.remove();
+  const line=document.createElement('div');
+  line.className='current-input';
+  const sug=getSuggestion(buf);
+  line.innerHTML=makePrompt(false,'~/kali-terminal-setup')+
+    highlight(buf)+
+    `<span class="hl-suggest">${esc(sug)}</span>`+
+    `<span class="hl-cursor"> </span></div>`;
+  liveBody.appendChild(line);
+  liveBody.scrollTop=liveBody.scrollHeight;
+}
+
+function execLive(){
+  const cmd=buf.trim();
+  const existing=liveBody.querySelector('.current-input');
+  if(existing)existing.remove();
+  // committed line
+  const cl=document.createElement('div');
+  cl.innerHTML=makePrompt(false,'~/kali-terminal-setup')+highlight(cmd)+'</div>';
+  liveBody.appendChild(cl);
+  if(cmd){histArr.unshift(cmd);histIdx=-1;}
+  if(cmd==='clear'){liveBody.innerHTML='';buf='';renderInput();return;}
+  const out=getOutput(cmd);
+  if(out){const od=document.createElement('div');od.innerHTML=out;liveBody.appendChild(od);}
+  buf='';renderInput();
+  liveBody.scrollTop=liveBody.scrollHeight;
+}
+
+liveTerm.addEventListener('click',()=>liveTerm.focus());
+liveTerm.addEventListener('keydown',e=>{
+  if(['Tab','ArrowUp','ArrowDown'].includes(e.key))e.preventDefault();
+  if(e.key==='Enter'){execLive();return;}
+  if(e.key==='Backspace'){buf=buf.slice(0,-1);renderInput();return;}
+  if(e.key==='Tab'){const sug=getSuggestion(buf);if(sug)buf+=sug;renderInput();return;}
+  if(e.key==='ArrowUp'){
+    if(histIdx<histArr.length-1){histIdx++;buf=histArr[histIdx];}renderInput();return;
+  }
+  if(e.key==='ArrowDown'){
+    if(histIdx>0){histIdx--;buf=histArr[histIdx];}else{histIdx=-1;buf='';}renderInput();return;
+  }
+  if(e.key==='c'&&e.ctrlKey){
+    const cl=document.createElement('div');
+    cl.innerHTML=makePrompt(false,'~/kali-terminal-setup')+highlight(buf)+'^C</div>';
+    liveBody.querySelector('.current-input')?.remove();
+    liveBody.appendChild(cl);
+    buf='';histIdx=-1;renderInput();return;
+  }
+  if(e.key.length===1&&!e.ctrlKey&&!e.metaKey){buf+=e.key;renderInput();}
+});
+
+// Init interactive
+renderInput();
+</script>
+</body>
+</html>
