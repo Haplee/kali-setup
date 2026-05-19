@@ -243,6 +243,14 @@ cat > "$ZSHRC" << 'EOF'
 #  https://github.com/Haplee/kali-terminal-setup
 # ============================================================
 
+# ── Guard: salir si no estamos en zsh ────────────────────────
+# Esto evita errores de sintaxis si alguien hace 'source ~/.zshrc' desde bash
+if [ -z "$ZSH_VERSION" ]; then
+  echo "[kali-terminal-setup] ERROR: .zshrc es para zsh, no para $(basename ${SHELL:-bash})."
+  echo "  Ejecuta: exec zsh"
+  return 1 2>/dev/null || exit 1
+fi
+
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME=""
 
