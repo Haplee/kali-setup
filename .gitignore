@@ -1,0 +1,18 @@
+# Backups generados por el script
+*.backup.*
+*.bak
+
+# Archivos temporales
+*.tmp
+*.log
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.code-workspace

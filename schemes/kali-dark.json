@@ -1,0 +1,27 @@
+{
+  "name": "Kali Dark",
+  "comment": "Kali Linux default terminal colors — standalone para importar manualmente",
+  "use-theme-colors": false,
+  "foreground-color": "#e0e0e0",
+  "background-color": "#1c1c1c",
+  "cursor-foreground-color": "#ffffff",
+  "cursor-background-color": "#00ff00",
+  "palette": [
+    "#1c1c1c",
+    "#ff4444",
+    "#39ff14",
+    "#ffcc00",
+    "#1e90ff",
+    "#cc44ff",
+    "#00e5ff",
+    "#e0e0e0",
+    "#4a4a4a",
+    "#ff6666",
+    "#66ff66",
+    "#ffdd55",
+    "#66aaff",
+    "#dd88ff",
+    "#55eeff",
+    "#ffffff"
+  ]
+}
